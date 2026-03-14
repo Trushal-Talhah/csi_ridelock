@@ -1,0 +1,266 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Smart Helmet Login</title>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#0f172a">
+
+  <style>
+    body {
+      margin: 0;
+      font-family: 'Segoe UI', sans-serif;
+      background: #0f172a;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+    }
+
+    .card {
+      background: #1e293b;
+      padding: 35px;
+      border-radius: 16px;
+      width: 90%;
+      max-width: 380px;
+      text-align: center;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.4);
+    }
+
+    .logo {
+      font-size: 45px;
+      margin-bottom: 10px;
+    }
+
+    h2 {
+      color: white;
+      font-weight: 500;
+      margin-bottom: 25px;
+    }
+
+    input {
+      width: 100%;
+      padding: 12px;
+      margin-bottom: 15px;
+      border-radius: 10px;
+      border: none;
+      background: #334155;
+      color: white;
+      font-size: 14px;
+    }
+
+    input:focus {
+      outline: none;
+      box-shadow: 0 0 0 2px #6366f1;
+    }
+
+    button {
+      width: 100%;
+      padding: 12px;
+      border-radius: 10px;
+      border: none;
+      font-weight: 600;
+      cursor: pointer;
+    }
+
+    .primary {
+      background: linear-gradient(90deg,#6366f1,#8b5cf6);
+      color: white;
+      margin-bottom: 10px;
+    }
+
+    .google {
+      background: white;
+      color: black;
+    }
+
+    .divider {
+      color: #94a3b8;
+      margin: 15px 0;
+      font-size: 14px;
+    }
+
+    .link {
+      color: #60a5fa;
+      cursor: pointer;
+      font-size: 14px;
+      margin-top: 10px;
+      display: block;
+    }
+
+    #message {
+      margin-top: 10px;
+      font-size: 13px;
+      color: #f87171;
+      min-height: 18px;
+    }
+  </style>
+</head>
+<body>
+
+<div class="card">
+  <div class="logo">🪖</div>
+  <h2 id="title">Sign in to Smart Helmet</h2>
+
+  <input type="text" id="name" placeholder="Full Name (Signup only)" style="display:none;">
+  <input type="email" id="email" placeholder="Email address">
+  <input type="password" id="password" placeholder="Password">
+
+  <button class="primary" id="mainBtn">Sign in</button>
+
+  <div class="divider">or</div>
+
+  <button class="google" id="googleBtn">Continue with Google</button>
+
+  <div class="link" id="toggleMode">Create an account</div>
+  <div class="link" id="resetBtn">Forgot password?</div>
+
+  <div id="message"></div>
+</div>
+
+<script type="module">
+
+import { initializeApp } from "https://www.gstatic.com/firebasejs/12.9.0/firebase-app.js";
+
+import {
+  getAuth,
+  createUserWithEmailAndPassword,
+  signInWithEmailAndPassword,
+  GoogleAuthProvider,
+  signInWithPopup,
+  sendPasswordResetEmail,
+  onAuthStateChanged,
+  setPersistence,
+  browserLocalPersistence
+} from "https://www.gstatic.com/firebasejs/12.9.0/firebase-auth.js";
+
+import {
+  getDatabase,
+  ref,
+  set
+} from "https://www.gstatic.com/firebasejs/12.9.0/firebase-database.js";
+
+
+/* 🔥 Firebase Config */
+const firebaseConfig = {
+  apiKey: "AIzaSyBEUzaep_rzJgnkhp-g69CDkvLggwQzGYk",
+  authDomain: "ridelock-b0169.firebaseapp.com",
+  databaseURL: "https://ridelock-b0169-default-rtdb.asia-southeast1.firebasedatabase.app",
+  projectId: "ridelock-b0169",
+  storageBucket: "ridelock-b0169.firebasestorage.app",
+  messagingSenderId: "713500087944",
+  appId: "1:713500087944:web:cbfacb4feaf70bfb48313d"
+};
+
+const app = initializeApp(firebaseConfig);
+const auth = getAuth(app);
+const db = getDatabase(app);
+
+/* 📱 Keep user logged in */
+setPersistence(auth, browserLocalPersistence);
+
+/* Redirect if already logged in */
+onAuthStateChanged(auth, user => {
+  if (user) {
+    window.location.href = "ridelock.html";
+  }
+});
+
+let isSignup = false;
+
+mainBtn.onclick = async () => {
+
+  const emailVal = email.value.trim();
+  const passwordVal = password.value.trim();
+  const nameVal = name.value.trim();
+
+  if (!emailVal || !passwordVal) {
+    message.innerText = "Please fill all fields.";
+    return;
+  }
+
+  try {
+
+    if (isSignup) {
+
+      const userCred = await createUserWithEmailAndPassword(auth, emailVal, passwordVal);
+
+      await set(ref(db, "users/" + userCred.user.uid), {
+        name: nameVal,
+        email: emailVal,
+        role: "parent",
+        createdAt: new Date().toISOString()
+      });
+
+    } else {
+      await signInWithEmailAndPassword(auth, emailVal, passwordVal);
+    }
+
+    window.location.href = "ridelock.html";
+
+  } catch (error) {
+    message.innerText = error.message;
+  }
+};
+
+
+/* 🔵 Google Login */
+googleBtn.onclick = async () => {
+  const provider = new GoogleAuthProvider();
+
+  try {
+    const result = await signInWithPopup(auth, provider);
+
+    await set(ref(db, "users/" + result.user.uid), {
+      name: result.user.displayName,
+      email: result.user.email,
+      role: "parent",
+      createdAt: new Date().toISOString()
+    });
+
+    window.location.href = "ridelock.html";
+
+  } catch (error) {
+    message.innerText = error.message;
+  }
+};
+
+
+/* Toggle Signup / Login */
+toggleMode.onclick = () => {
+
+  isSignup = !isSignup;
+
+  if (isSignup) {
+    title.innerText = "Create Smart Helmet Account";
+    mainBtn.innerText = "Create Account";
+    toggleMode.innerText = "Already have account? Sign in";
+    name.style.display = "block";
+  } else {
+    title.innerText = "Sign in to Smart Helmet";
+    mainBtn.innerText = "Sign in";
+    toggleMode.innerText = "Create an account";
+    name.style.display = "none";
+  }
+
+  message.innerText = "";
+};
+
+
+/* Reset Password */
+resetBtn.onclick = () => {
+
+  if (!email.value) {
+    message.innerText = "Enter your email first.";
+    return;
+  }
+
+  sendPasswordResetEmail(auth, email.value)
+    .then(() => alert("Password reset email sent"))
+    .catch(error => message.innerText = error.message);
+};
+
+</script>
+
+</body>
+</html>
